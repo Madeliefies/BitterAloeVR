@@ -31,7 +31,7 @@ public class PlantUIManager : MonoBehaviour
     private List<string> dialoguePages = new List<string>();
     private Testimony currentTestimony = new Testimony();
     private int startHighlightIndex;
-    public int highlightPage;
+    public int highlightPageNum;
 
 
     public void Start()
@@ -53,37 +53,46 @@ public class PlantUIManager : MonoBehaviour
         dialoguePages.Clear();
         currentTestimony = testimony;
 
-        var fileTestimonies = level.parq.TestimonySearchByFile(level.parq.testimonies, (int)currentTestimony.file_num);
+        Debug.Log($"Current file number: {(int)currentTestimony.file_num}");
 
+        // TODO: Instead of generating list on query, have every per-file testimony list cached
+        //level.parq.testimoniesByFileCache.TryGetValue((int)currentTestimony.file_num, out var fileTestimonies);
+
+        var fileTestimonies = level.parq.GetTestimoniesByFile((ushort)currentTestimony.file_num);
+
+        Debug.Log($"Current file length: {fileTestimonies.Count}");
+        //var fileTestimonies = level.parq.TestimonySearchByFile(level.parq.testimonies, (int)currentTestimony.file_num);
+
+        // TODO: Restructure this code to make functionality more clear, separate line highlighting from line creation
         string pageText = string.Empty;
         startHighlightIndex = 0;
-        for (int line = 0; line < fileTestimonies.Count; line++)
+        for (int lineIndex = 0; lineIndex < fileTestimonies.Count; lineIndex++)
         {
             bool highlight = false;
-            if (line == Convert.ToInt32(currentTestimony.file_index))
+            if (lineIndex == Convert.ToInt32(currentTestimony.file_index))
                 highlight = true;
 
             if (highlight)
             {
                 startHighlightIndex = pageText.Length;
-                highlightPage = dialoguePages.Count;
+                highlightPageNum = dialoguePages.Count;
                 pageText += "<#FFFF00>";
             }
-            pageText += $"<u>{fileTestimonies[line].speaker}:</u><space=1.5em>{fileTestimonies[line].dialogue}";
+            pageText += $"<u>{fileTestimonies[lineIndex].speaker}:</u><space=1.5em>{fileTestimonies[lineIndex].dialogue}";
             if (highlight)
             {
                 pageText += "</color>";
             }
             pageText += "\n";
 
-            if (line != 0 && (line + 1) % linesPerPage == 0)
+            if ((lineIndex != 0 && (((lineIndex + 1) % linesPerPage) == 0)) || lineIndex == fileTestimonies.Count - 1)
             {
                 dialoguePages.Add(pageText);
                 pageText = string.Empty;
             }
-
             //dialoguePages[dialoguePages.Count-1] += $"<u>{fileTestimonies[line].speaker}:</u><space=1.5em>{fileTestimonies[line].dialogue}\n";
         }
+        Debug.Log($"Dialogue pages array length: {dialoguePages.Count}");
 
         currentPageIndex = 0;
     }
@@ -109,6 +118,8 @@ public class PlantUIManager : MonoBehaviour
 
     public void DisplayTranscriptPage(int page)
     {
+        Debug.Log($"Displaying page {page}");
+
         currentPageIndex = page;
         pageNumberDisplay.SetText($"{currentPageIndex + 1} / {dialoguePages.Count}");
         //foreach (Transform child in testimonyUIWindow.transform)

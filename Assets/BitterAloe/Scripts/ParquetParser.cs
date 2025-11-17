@@ -51,8 +51,6 @@ public class ParquetParser : MonoBehaviour
     public string fileName = "trctestimonies.parquet";
 
     private string filePath;
-    //public DataFrame df = new DataFrame();
-    //public DataFrame dfFiltered;
     public List<Testimony> testimonyList;
     public Testimonies testimonies;
     public KDTree kdTree;
@@ -67,14 +65,14 @@ public class ParquetParser : MonoBehaviour
     // value datapoints are scaled by after offset adjustments
     //public float dataScalar = 40f;
 
-    //public int[,,] testimonyTileIndices = new int[2000, 2000, 500];
-    //public int[,] tileIndiceLengths = new int[2000, 2000];
     public Vector2 testimonyTileCenterOffset = new(920f, 880f);
-    //public Vector2 testimonyTileCenterOffset = new(1300, 1474);
 
     public List<int>[,] tileIndices = new List<int>[worldTileLength, worldTileLength];
     public List<Vector3> testimonyLevelPositions;
     //private List<Testimony> testimonyBuffer;
+
+
+    public Dictionary<ushort, List<ushort>> testimoniesByFileCache = new Dictionary<ushort, List<ushort>>();
 
 
     // Start is called before the first frame update
@@ -120,6 +118,8 @@ public class ParquetParser : MonoBehaviour
         await PopulateTiles(testimonyLevelPositions);
 
         kdTree = MakeKDTree(testimonyLevelPositions);
+
+        PopulateTestimoniesByFileCache();
 
         //Testimony filter = new Testimony();
         //filter.location = "Cape Town";
@@ -570,7 +570,7 @@ public class ParquetParser : MonoBehaviour
     }
 
     static readonly ProfilerMarker TestimonySearchByHearingProfiler = new ProfilerMarker("TestimonySearchByHearing");
-    public List<Testimony> TestimonySearchByFile(Testimonies testimonies, int file_num)
+    public List<Testimony> TestimonySearchByFile(Testimonies testimonies, int fileNum)
     {
         using (TestimonySearchByHearingProfiler.Auto())
         {
@@ -584,7 +584,7 @@ public class ParquetParser : MonoBehaviour
             for (int i = 0; i < testimonies.fileArray.Count(); i++)
             {
                 bool matchFound = false;
-                if (file_num.Equals(testimonies.fileArray[i].file_num))
+                if (fileNum.Equals(testimonies.fileArray[i].file_num))
                 {
                     matchFound = true;
                     files.Add(testimonies.fileArray[i]);
@@ -603,6 +603,43 @@ public class ParquetParser : MonoBehaviour
             return locationList;
         }
     }
+
+    public List<Testimony> GetTestimoniesByFile(ushort fileNum)
+    {
+        List<Testimony> tempTestimonyList = new List<Testimony>();
+
+        Debug.Log($"getting file of length {testimoniesByFileCache[fileNum].Count}");
+
+        foreach (ushort index in testimoniesByFileCache[fileNum])
+        {
+            tempTestimonyList.Add(testimonies.testimonyArray[index]);
+        }
+
+        return tempTestimonyList;
+    }
+
+    private void PopulateTestimoniesByFileCache()
+    {
+        List<Testimony> tempTestimonyList = new List<Testimony>();
+        //Testimonies.File testimonyFile = null;
+
+        List<ushort> fileNums = new List<ushort>();
+
+        for (int i = 0; i < testimonies.fileArray.Count(); i++)
+        {
+            if (!testimoniesByFileCache.ContainsKey((ushort)testimonies.fileArray[i].file_num))
+                testimoniesByFileCache.Add((ushort)testimonies.fileArray[i].file_num, new List<ushort>());
+        }
+        for (int i = 0; i < testimonies.fileArray.Count(); i++)
+        {
+            testimoniesByFileCache[(ushort)testimonies.fileArray[i].file_num].Add((ushort)testimonies.fileArray[i].index);
+            Debug.Log($"testimony added to file {testimonies.fileArray[i].file_num}, length now {testimoniesByFileCache[(ushort)testimonies.fileArray[i].file_num].Count}");
+        }
+
+
+        Debug.Log($"Testimonies cached by file, {testimoniesByFileCache.Count} files found");
+    }
+
 
 
 

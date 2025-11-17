@@ -74,8 +74,6 @@ public class TileData : MonoBehaviour
     // object coordinates are in tile localspace
     public async UniTask GetObjectData()
     {
-        //using (GetObjectDataProfiler.Auto())
-        //{
         while (levelFound == false || level.parq.parquetRead == false)
             await UniTask.Yield();
 
